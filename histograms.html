@@ -44,9 +44,7 @@
     });      
 };
 
-NetflixData((data) => {
-    console.log(data)
-
+function visualizeDurationCountsHistogram(data) {
     
     let h = 500;
     let w = 600;
@@ -58,6 +56,7 @@ NetflixData((data) => {
 
     let padding = 50;
 
+    //***Duration/Counts Histogram***//
     let durationCounts = d3.rollup(data, v => v.length, d => d.duration);
 
      // Sorting the durations cuz we cant display all the durations (Too much)
@@ -135,9 +134,113 @@ NetflixData((data) => {
         .call(d3.axisLeft(yScale))
         .selectAll("text")
         .attr("font-weight", 600);
+}
+
+
+function visualizeReleaseYearCountsHistogram(data) {
+
+    let h = 500;
+    let w = 600;
+
+    let svg = d3.select("body")
+                .append("svg")
+                .attr("height", h)
+                .attr("width", w);
+
+    let padding = 50;
+
+
+    //***Release_year/Counts Histogram***//
+
+    let releaseYearCounts = d3.rollup(data, v => v.length, d => d.release_year);
+
+    // Sorting release years in descending order
+    let sortedReleaseYears = Array.from(releaseYearCounts.keys()).sort((a, b) => b - a);
+
+    // Select the last 15 release years
+    let last15ReleaseYears = sortedReleaseYears.slice(0, 15);
+
+    let xScaleReleaseYear = d3.scaleBand()
+        .domain(last15ReleaseYears)
+        .range([padding, w - padding])
+        .padding(0.1);
+
+    let maxReleaseYearCounts = d3.max(last15ReleaseYears.map(year => releaseYearCounts.get(year))) || 0;
+
+    let yScaleReleaseYear = d3.scaleLinear()
+        .domain([0, maxReleaseYearCounts + 0.05 * maxReleaseYearCounts])
+        .range([h - padding, padding]);
+
+    svg.selectAll(".release-year-rect")
+        .data(last15ReleaseYears.map(year => [year, releaseYearCounts.get(year)]))
+        .enter()
+        .append("rect")
+        .attr("class", "release-year-rect")
+        .attr("x", d => xScaleReleaseYear(d[0]))
+        .attr("y", d => yScaleReleaseYear(d[1]))
+        .attr("width", xScaleReleaseYear.bandwidth())
+        .attr("height", d => h - padding - yScaleReleaseYear(d[1]))
+        .attr("fill", "steelblue");
+
+    svg.selectAll(".release-year-label")
+        .data(last15ReleaseYears.map(year => [year, releaseYearCounts.get(year)]))
+        .enter()
+        .append("text")
+        .attr("class", "release-year-label")
+        .text(d => d[1])
+        .attr("x", d => xScaleReleaseYear(d[0]) + xScaleReleaseYear.bandwidth() / 2)
+        .attr("y", d => yScaleReleaseYear(d[1]) - 5)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "8px")
+        .attr("font-weight", "600")
+        .attr("fill", "black")
+        .style("opacity", 0);
+
+    svg.selectAll(".release-year-rect")
+        .on("mouseenter", function (event, d) {
+            d3.select(this).attr("fill", "orange");
+            svg.selectAll(".release-year-label")
+                .filter(label => label[0] === d[0])
+                .style("opacity", 1);
+        })
+        .on("mouseleave", function (event, d) {
+            d3.select(this).attr("fill", "steelblue");
+            svg.selectAll(".release-year-label")
+                .filter(label => label[0] === d[0])
+                .style("opacity", 0);
+        });
+
+    // x-axis
+    svg.append("g")
+        .attr("transform", "translate(0," + (h - padding) + ")")
+        .call(d3.axisBottom(xScaleReleaseYear))
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("font-weight", 600)
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)");
+
+    // y-axis
+    svg.append("g")
+        .attr("transform", "translate(" + padding + ",0)")
+        .call(d3.axisLeft(yScaleReleaseYear))
+        .selectAll("text")
+        .attr("font-weight", 600);
+    
+}
+
+NetflixData((data) => {
+    console.log(data)
+
+    //Calling the visualizations here
+    visualizeDurationCountsHistogram(data);
+    visualizeReleaseYearCountsHistogram(data);
 
 
 
+    
 });
 
     </script>
