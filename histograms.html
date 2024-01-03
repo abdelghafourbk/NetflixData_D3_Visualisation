@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style type="text/css">
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: black;
+        }
+        .axis text {
+            font-family: sans-serif;
+            font-size: 12px;
+
+        }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+        const NetflixData = (callback) => {
+        d3.csv("netflix_titles.csv").then((data) => {
+        let dataset = data.map((d) => {
+                                return {
+                                    // show_id,type,title,director,cast,country,date_added,release_year,rating,duration,listed_in,description
+                                    type: d.type,           //string
+                                    title: d.title,         //string
+                                    director: d.director,   //string or Array of strings
+                                    cast: d.cast,           //Array Of strings
+                                    country: d.country,     //string or array of strings
+                                    date_added: d.date_added, //string
+                                    release_year: d.release_year, //number
+                                    rating: d.rating,               //string
+                                    duration: d.duration,       //string
+                                    listed_in: d.listed_in,     //string or array of strings
+                                    description: d.description, //list of strings
+                                    
+                                };
+                        }); 
+        callback(dataset);
+    });      
+};
+
+NetflixData((data) => {
+    console.log(data)
+
+    
+    let h = 500;
+    let w = 600;
+
+    let svg = d3.select("body")
+                .append("svg")
+                .attr("height", h)
+                .attr("width", w);
+
+    let padding = 50;
+
+    let durationCounts = d3.rollup(data, v => v.length, d => d.duration);
+
+     // Sorting the durations cuz we cant display all the durations (Too much)
+     let sortedDurations = Array.from(durationCounts.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 15); // Top15
+
+    let xScale = d3.scaleBand()
+        // .domain(Array.from(durationCounts.keys()))
+        .domain(sortedDurations.map(d => d[0]))
+        .range([padding, w - padding])
+        .padding(0.1);
+
+    let maxCountDurations = d3.max(sortedDurations, d => d[1])
+
+    let yScale = d3.scaleLinear()
+        //.domain([0, d3.max(durationCounts.values())])
+        .domain([0,maxCountDurations + 0.05*maxCountDurations ])
+        .range([h - padding, padding]);
+
+    let bars = svg.selectAll("rect")   
+                // .data(durationCounts.entries())
+                .data(sortedDurations)
+                .enter()
+                .append("rect")
+                .attr("x", d => xScale(d[0]))
+                .attr("y", d => yScale(d[1]))
+                .attr("width", xScale.bandwidth())
+                .attr("height", d => h - padding - yScale(d[1]))
+                .attr("fill", "purple");
+
+
+    // Add labels on top of each rectangle
+    let labels = svg.selectAll("text")
+                    .data(sortedDurations)
+                    .enter()
+                    .append("text")
+                    .text(d => d[1]) 
+                    .attr("x", d => xScale(d[0]) + xScale.bandwidth() / 2)
+                    .attr("y", d => yScale(d[1]) - 5) 
+                    .attr("text-anchor", "middle")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "12px")
+                    .attr("font-weight", "700") 
+                    .attr("fill", "black")
+                    .style("opacity", 0);
+                    
+
+    // Show labels on hover
+    bars.on("mouseover", function (event, d) {
+        d3.select(this).attr("fill", "orange"); 
+        labels.filter(label => label === d)
+            .style("opacity", 1); 
+    })
+        .on("mouseout", function (event, d) {
+            d3.select(this).attr("fill", "purple"); 
+            labels.filter(label => label === d)
+                .style("opacity", 0); 
+        });
+
+    // x-axis
+    svg.append("g")
+        .attr("transform", "translate(0," + (h - padding) + ")")
+        .call(d3.axisBottom(xScale))
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("font-weight", 600)
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)");
+
+    // y-axis
+    svg.append("g")
+        .attr("transform", "translate(" + padding + ",0)")
+        .call(d3.axisLeft(yScale))
+        .selectAll("text")
+        .attr("font-weight", 600);
+
+
+
+});
+
+    </script>
+
+</body>
+</html>
