@@ -186,10 +186,14 @@ function visualizeDateAddedCountsHistogram(data) {
         .append("rect")
         .attr("class", "date-added-rect")
         .attr("x", d => xScaleDateAdded(d[0]))
-        .attr("y", d => yScaleDateAdded(d[1]))
+        .attr("y", d => h - padding)
         .attr("width", xScaleDateAdded.bandwidth())
-        .attr("height", d => h - padding - yScaleDateAdded(d[1]))
-        .attr("fill", "purple");
+        .attr("height", 0) 
+        .attr("fill", "purple")
+        .transition() 
+        .duration(1000) 
+        .attr("y", d => yScaleDateAdded(d[1]))
+        .attr("height", d => h - padding - yScaleDateAdded(d[1]));
 
     svg.selectAll(".date-added-label")
         .data(last15DateAdded.map(year => [year, dateAddedCounts.get(year)]))
@@ -288,10 +292,14 @@ function visualizeReleaseYearCountsHistogram(data) {
         .append("rect")
         .attr("class", "release-year-rect")
         .attr("x", d => xScaleReleaseYear(d[0]))
-        .attr("y", d => yScaleReleaseYear(d[1]))
+        .attr("y", d => h - padding)
         .attr("width", xScaleReleaseYear.bandwidth())
-        .attr("height", d => h - padding - yScaleReleaseYear(d[1]))
-        .attr("fill", "steelblue");
+        .attr("height", 0) 
+        .attr("fill", "steelblue")
+        .transition() 
+        .duration(1000) 
+        .attr("y", d => yScaleReleaseYear(d[1]))
+        .attr("height", d => h - padding - yScaleReleaseYear(d[1]));
 
     svg.selectAll(".release-year-label")
         .data(last15ReleaseYears.map(year => [year, releaseYearCounts.get(year)]))
@@ -350,6 +358,107 @@ function visualizeReleaseYearCountsHistogram(data) {
         .text("Last 15 Years Release Year Counts");
 }
 
+function visualizeRatingCountsHistogram(data){
+    let h = 500;
+    let w = 600;
+
+
+    let svg = d3.select("body")
+        .append("svg")
+        .attr("height", h + 70) // Increased height to accommodate the title
+        .attr("width", w);
+
+    let padding = 50;
+
+    //***Rating/Counts Histogram***//
+
+    let ratingCounts = d3.rollup(data, v => v.length, d => d.rating);
+
+    let sortedRatings = Array.from(ratingCounts.keys()).sort();
+
+    let xScaleRating = d3.scaleBand()
+        .domain(sortedRatings)
+        .range([padding, w - padding])
+        .padding(0.1);
+
+    let maxRatingCounts = d3.max(sortedRatings.map(rating => ratingCounts.get(rating))) || 0;
+
+    let yScaleRating = d3.scaleLinear()
+        .domain([0, maxRatingCounts + 0.05 * maxRatingCounts])
+        .range([h - padding, padding]);
+
+    svg.selectAll(".rating-rect")
+        .data(sortedRatings.map(rating => [rating, ratingCounts.get(rating)]))
+        .enter()
+        .append("rect")
+        .attr("class", "rating-rect")
+        .attr("x", d => xScaleRating(d[0]))
+        .attr("y", d => h - padding)
+        .attr("width", xScaleRating.bandwidth())
+        .attr("height", 0) 
+        .attr("fill", "green")
+        .transition() 
+        .duration(1000) 
+        .attr("y", d => yScaleRating(d[1]))
+        .attr("height", d => h - padding - yScaleRating(d[1]));
+
+    svg.selectAll(".rating-label")
+        .data(sortedRatings.map(rating => [rating, ratingCounts.get(rating)]))
+        .enter()
+        .append("text")
+        .attr("class", "rating-label")
+        .text(d => d[1])
+        .attr("x", d => xScaleRating(d[0]) + xScaleRating.bandwidth() / 2)
+        .attr("y", d => yScaleRating(d[1]) - 5)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "12px")
+        .attr("font-weight", "700")
+        .attr("fill", "black")
+        .style("opacity", 0);
+
+    svg.selectAll(".rating-rect")
+        .on("mouseenter", function (event, d) {
+            d3.select(this).attr("fill", "orange");
+            svg.selectAll(".rating-label")
+                .filter(label => label[0] === d[0])
+                .style("opacity", 1);
+        })
+        .on("mouseleave", function (event, d) {
+            d3.select(this).attr("fill", "green");
+            svg.selectAll(".rating-label")
+                .filter(label => label[0] === d[0])
+                .style("opacity", 0);
+        });
+
+   
+    svg.append("g")
+        .attr("transform", "translate(0," + (h - padding) + ")")
+        .call(d3.axisBottom(xScaleRating))
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("font-weight", 600)
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)")
+        .attr("font-size", "10px"); 
+
+    svg.append("g")
+        .attr("transform", "translate(" + padding + ",0)")
+        .call(d3.axisLeft(yScaleRating))
+        .selectAll("text")
+        .attr("font-weight", 600);
+
+    svg.append("text")
+        .attr("x", w / 2)
+        .attr("y", h + 60)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "16px")
+        .attr("font-weight", "bold")
+        .text("All Ratings Counts");
+}
+
 NetflixData((data) => {
     console.log(data)
 
@@ -357,6 +466,7 @@ NetflixData((data) => {
     visualizeDurationCountsHistogram(data);
     visualizeReleaseYearCountsHistogram(data);
     visualizeDateAddedCountsHistogram(data);
+    visualizeRatingCountsHistogram(data);
 
 
 
