@@ -48,13 +48,13 @@ function visualizeDurationCountsHistogram(data) {
     
     let h = 500;
     let w = 600;
+    let padding = 50;
 
     let svg = d3.select("body")
                 .append("svg")
-                .attr("height", h)
+                .attr("height", h + 70)
                 .attr("width", w);
 
-    let padding = 50;
 
     //***Duration/Counts Histogram***//
     let durationCounts = d3.rollup(data, v => v.length, d => d.duration);
@@ -134,20 +134,131 @@ function visualizeDurationCountsHistogram(data) {
         .call(d3.axisLeft(yScale))
         .selectAll("text")
         .attr("font-weight", 600);
+
+    svg.append("text")
+        .attr("x", w / 2)
+        .attr("y", h + 60 ) // Adjust the position based on your preference
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "16px")
+        .attr("font-weight", "bold")
+        .text("Highest 15 Shows & movies Duration Counts");
 }
 
+
+function visualizeDateAddedCountsHistogram(data) {
+    
+    let h = 500;
+    let w = 600;
+    let padding = 50;
+
+    let svg = d3.select("body")
+                .append("svg")
+                .attr("height", h + 70)
+                .attr("width", w);
+
+
+
+    //***Date_Added/Counts Histogram***//
+
+    let dateAddedCounts = d3.rollup(data, v => v.length, d => d.date_added);
+
+    // Sorting release years in descending order
+    let sortedDateAdded = Array.from(dateAddedCounts.keys()).sort((a, b) => b - a);
+
+    // Select the last 15 release years
+    let last15DateAdded = sortedDateAdded.slice(0, 15);
+
+    let xScaleDateAdded = d3.scaleBand()
+        .domain(last15DateAdded)
+        .range([padding, w - padding])
+        .padding(0.1);
+
+    let maxDateAddedCounts = d3.max(last15DateAdded.map(year => dateAddedCounts.get(year))) || 0;
+
+    let yScaleDateAdded = d3.scaleLinear()
+        .domain([0, maxDateAddedCounts + 0.05 * maxDateAddedCounts])
+        .range([h - padding, padding]);
+
+    svg.selectAll(".date-added-rect")
+        .data(last15DateAdded.map(year => [year, dateAddedCounts.get(year)]))
+        .enter()
+        .append("rect")
+        .attr("class", "date-added-rect")
+        .attr("x", d => xScaleDateAdded(d[0]))
+        .attr("y", d => yScaleDateAdded(d[1]))
+        .attr("width", xScaleDateAdded.bandwidth())
+        .attr("height", d => h - padding - yScaleDateAdded(d[1]))
+        .attr("fill", "purple");
+
+    svg.selectAll(".date-added-label")
+        .data(last15DateAdded.map(year => [year, dateAddedCounts.get(year)]))
+        .enter()
+        .append("text")
+        .attr("class", "date-added-label")
+        .text(d => d[1])
+        .attr("x", d => xScaleDateAdded(d[0]) + xScaleDateAdded.bandwidth() / 2)
+        .attr("y", d => yScaleDateAdded(d[1]) - 5)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "12px")
+        .attr("font-weight", "700")
+        .attr("fill", "black")
+        .style("opacity", 0);
+
+    svg.selectAll(".date-added-rect")
+        .on("mouseenter", function (event, d) {
+            d3.select(this).attr("fill", "orange");
+            svg.selectAll(".date-added-label")
+                .filter(label => label[0] === d[0])
+                .style("opacity", 1);
+        })
+        .on("mouseleave", function (event, d) {
+            d3.select(this).attr("fill", "purple");
+            svg.selectAll(".date-added-label")
+                .filter(label => label[0] === d[0])
+                .style("opacity", 0);
+        });
+
+    // x-axis
+    svg.append("g")
+        .attr("transform", "translate(0," + (h - padding) + ")")
+        .call(d3.axisBottom(xScaleDateAdded))
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("font-weight", 600)
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)");
+
+    // y-axis
+    svg.append("g")
+        .attr("transform", "translate(" + padding + ",0)")
+        .call(d3.axisLeft(yScaleDateAdded))
+        .selectAll("text")
+        .attr("font-weight", 600);
+    
+    svg.append("text")
+        .attr("x", w / 2)
+        .attr("y", h + 60 ) 
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "16px")
+        .attr("font-weight", "bold")
+        .text("Last 15 date added Counts");
+}
 
 function visualizeReleaseYearCountsHistogram(data) {
 
     let h = 500;
     let w = 600;
+    let padding = 50;
 
     let svg = d3.select("body")
                 .append("svg")
-                .attr("height", h)
+                .attr("height", h + 70)
                 .attr("width", w);
 
-    let padding = 50;
 
 
     //***Release_year/Counts Histogram***//
@@ -192,8 +303,8 @@ function visualizeReleaseYearCountsHistogram(data) {
         .attr("y", d => yScaleReleaseYear(d[1]) - 5)
         .attr("text-anchor", "middle")
         .attr("font-family", "sans-serif")
-        .attr("font-size", "8px")
-        .attr("font-weight", "600")
+        .attr("font-size", "12px")
+        .attr("font-weight", "700")
         .attr("fill", "black")
         .style("opacity", 0);
 
@@ -229,6 +340,14 @@ function visualizeReleaseYearCountsHistogram(data) {
         .selectAll("text")
         .attr("font-weight", 600);
     
+    svg.append("text")
+        .attr("x", w / 2)
+        .attr("y", h + 60) 
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "16px")
+        .attr("font-weight", "bold")
+        .text("Last 15 Years Release Year Counts");
 }
 
 NetflixData((data) => {
@@ -237,6 +356,7 @@ NetflixData((data) => {
     //Calling the visualizations here
     visualizeDurationCountsHistogram(data);
     visualizeReleaseYearCountsHistogram(data);
+    visualizeDateAddedCountsHistogram(data);
 
 
 
