@@ -24,7 +24,8 @@
         const NetflixData = (callback) => {
         d3.csv("netflix_titles.csv").then((data) => {
         let dataset = data
-            .filter(d => d.director && d.director.trim() !== "")  // Filter out entries with empty or undefined director                
+            .filter(d => d.director && d.director.trim() !== "")  // Filter out entries with empty or undefined director    
+            .filter(d => d.rating && d.rating.trim() !== "")            
             .map((d) => {
                                 return {
                                     // show_id,type,title,director,cast,country,date_added,release_year,rating,duration,listed_in,description
@@ -575,6 +576,93 @@ function visualizeTopDirectorsHistogram(data) {
         .text("Top 15 Directors by Title Counts");
 }
 
+function visualizeRatingPieChart(data) {
+
+    let ratingCounts = d3.rollup(data, v => v.length, d => d.rating);
+
+    let pieData = Array.from(ratingCounts, ([rating, count]) => ({ rating, count }));
+
+    pieData.sort((a, b) => b.count - a.count);
+
+    let top5Data = pieData.slice(0, 5);
+    let othersCount = d3.sum(pieData.slice(5), d => d.count);
+    top5Data.push({ rating: "Others", count: othersCount });
+
+    let totalCount = d3.sum(top5Data, d => d.count);
+    top5Data.forEach(d => {
+        d.percentage = (d.count / totalCount) * 100;
+    });
+
+    let width = 700;
+    let height = 500;
+    let radius = Math.min(width, height) / 2.5;
+
+    let color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    let svg = d3.select("body")
+        .append("svg")
+        .attr("width", width+ 100)
+        .attr("height", height + 100)
+        .append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+    let pie = d3.pie()
+        .value(d => d.percentage);
+
+    let arc = d3.arc()
+        .outerRadius(radius - 10)
+        .innerRadius(0);
+
+    let arcs = svg.selectAll(".arc")
+        .data(pie(top5Data))
+        .enter()
+        .append("g")
+        .attr("class", "arc");
+
+    arcs.append("path")
+        .attr("d", arc)
+        .attr("fill", d => color(d.data.rating));
+
+    arcs.append("text")
+        .attr("transform", d => "translate(" + arc.centroid(d) + ")")
+        .attr("dy", ".25em")
+        .text(d => `${d.data.percentage.toFixed(1)}%`)        
+        .attr("font-family", "sans-serif")
+        .style("font-weight", "600")
+        .style("text-anchor", "middle");
+
+    svg.append("text")
+        .attr("x", 0)
+        .attr("y", height / 2 + 20)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .style("font-size", "16px")
+        .style("font-weight", "700")
+        .text("Top 5 Rating Distribution");
+
+    let legend = svg.selectAll(".legend")
+        .data(top5Data.map(d => d.rating))
+        .enter()
+        .append("g")
+        .attr("class", "legend")
+        .attr("transform", (d, i) => "translate(0," + (i * 20 + height / 2 - 30) + ")");
+
+    legend.append("rect")
+        .attr("x", width / 2 - 18)
+        .attr("width", 18)
+        .attr("height", 18)
+        .style("fill", d => color(d));
+
+    legend.append("text")
+        .attr("x", width / 2 - 24)
+        .attr("y", 9)
+        .attr("dy", ".35em")
+        .attr("font-family", "sans-serif")
+        .style("font-size", "16px")
+        .style("font-weight", "500")
+        .style("text-anchor", "end")
+        .text(d => d);
+}
 
 NetflixData((data) => {
     console.log(data)
@@ -585,7 +673,7 @@ NetflixData((data) => {
     visualizeDateAddedCountsHistogram(data);
     visualizeRatingCountsHistogram(data);
     visualizeTopDirectorsHistogram(data);
-
+    visualizeRatingPieChart(data);
 
 
     
