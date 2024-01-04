@@ -23,7 +23,9 @@
 
         const NetflixData = (callback) => {
         d3.csv("netflix_titles.csv").then((data) => {
-        let dataset = data.map((d) => {
+        let dataset = data
+            .filter(d => d.director && d.director.trim() !== "")  // Filter out entries with empty or undefined director                
+            .map((d) => {
                                 return {
                                     // show_id,type,title,director,cast,country,date_added,release_year,rating,duration,listed_in,description
                                     type: d.type,           //string
@@ -144,7 +146,6 @@ function visualizeDurationCountsHistogram(data) {
         .attr("font-weight", "bold")
         .text("Highest 15 Shows & movies Duration Counts");
 }
-
 
 function visualizeDateAddedCountsHistogram(data) {
     
@@ -459,6 +460,122 @@ function visualizeRatingCountsHistogram(data){
         .text("All Ratings Counts");
 }
 
+function visualizeTopDirectorsHistogram(data) {
+    let h = 500;
+    let w = 600;
+
+    let svg = d3.select("body")
+        .append("svg")
+        .attr("height", h + 70) // Increased height to accommodate the title
+        .attr("width", w);
+
+    let padding = 50;
+
+    //***Top Directors/Title Counts Histogram***//
+    // dont forget when fetching the director data that there are some title shaving multiple directors
+    // Create an object to store counts for each director
+    let directorCounts = {};
+
+    // Count titles for each director
+    data.forEach(d => {
+        let directors = d.director.split(/\s*,\s*/);
+        directors.forEach(dir => {
+            if (directorCounts[dir]) {
+                directorCounts[dir]++;
+            } else {
+                directorCounts[dir] = 1;
+            }
+        });
+    });
+
+    // Convert the object into an array of [director, count]
+    let sortedDirectors = Object.entries(directorCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15);
+
+    let xScaleDirectors = d3.scaleBand()
+        .domain(sortedDirectors.map(d => d[0]))
+        .range([padding, w - padding])
+        .padding(0.1);
+
+    let maxDirectorCounts = d3.max(sortedDirectors, d => d[1]) || 0;
+
+    let yScaleDirectors = d3.scaleLinear()
+        .domain([0, maxDirectorCounts + 0.05 * maxDirectorCounts])
+        .range([h - padding, padding]);
+
+    svg.selectAll(".director-rect")
+        .data(sortedDirectors)
+        .enter()
+        .append("rect")
+        .attr("class", "director-rect")
+        .attr("x", d => xScaleDirectors(d[0]))
+        .attr("y", d => h - padding)
+        .attr("width", xScaleDirectors.bandwidth())
+        .attr("height", 0)
+        .attr("fill", "blue")
+        .transition()
+        .duration(1000)
+        .attr("y", d => yScaleDirectors(d[1]))
+        .attr("height", d => h - padding - yScaleDirectors(d[1]));
+
+    svg.selectAll(".director-label")
+        .data(sortedDirectors)
+        .enter()
+        .append("text")
+        .attr("class", "director-label")
+        .text(d => d[1])
+        .attr("x", d => xScaleDirectors(d[0]) + xScaleDirectors.bandwidth() / 2)
+        .attr("y", d => yScaleDirectors(d[1]) - 5)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "12px")
+        .attr("font-weight", "700")
+        .attr("fill", "black")
+        .style("opacity", 0);
+
+    svg.selectAll(".director-rect")
+        .on("mouseenter", function (event, d) {
+            d3.select(this).attr("fill", "orange");
+            svg.selectAll(".director-label")
+                .filter(label => label === d)
+                .style("opacity", 1);
+        })
+        .on("mouseleave", function (event, d) {
+            d3.select(this).attr("fill", "blue");
+            svg.selectAll(".director-label")
+                .filter(label => label === d)
+                .style("opacity", 0);
+        });
+
+    svg.append("g")
+        .attr("transform", "translate(0," + (h - padding) + ")")
+        .call(d3.axisBottom(xScaleDirectors))
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("font-weight", 600)
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)")
+        .attr("font-size", "10px");
+
+    svg.append("g")
+        .attr("transform", "translate(" + padding + ",0)")
+        .call(d3.axisLeft(yScaleDirectors))
+        .selectAll("text")
+        .attr("font-weight", 600);
+
+    svg.append("text")
+        .attr("x", w / 2)
+        .attr("y", h + 60)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "16px")
+        .attr("font-weight", "bold")
+        .text("Top 15 Directors by Title Counts");
+}
+
+
 NetflixData((data) => {
     console.log(data)
 
@@ -467,6 +584,7 @@ NetflixData((data) => {
     visualizeReleaseYearCountsHistogram(data);
     visualizeDateAddedCountsHistogram(data);
     visualizeRatingCountsHistogram(data);
+    visualizeTopDirectorsHistogram(data);
 
 
 
