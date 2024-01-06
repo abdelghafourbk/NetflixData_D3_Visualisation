@@ -909,7 +909,7 @@ svg.append("text")
     .text("Top 5 Listed In Categories Distribution");
 }
 
-function visualizeLineChart(data) {
+function visualizeReleaseYearCountsLineChart(data) {
     let margin = { top: 20, right: 30, bottom: 80, left: 60 },
         width = 800 - margin.left - margin.right,
         height = 400 ;
@@ -1034,6 +1034,167 @@ function visualizeLineChart(data) {
 }
 
 
+function visualizeReleaseYearCountsListedInLineChart(data) {
+    let margin = { top: 20, right: 30, bottom: 80, left: 60 },
+        width = 800 - margin.left - margin.right,
+        height = 400;
+
+    let svg = d3.select("body")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // Filter data for the last 20 years
+    let last20YearsData = data.filter(d => d.release_year >= 2005);
+
+    last20YearsData.forEach(d => {
+        d.release_year = +d.release_year; // Convert to number
+    });
+
+    // Years from newest to oldest
+    let years = Array.from(new Set(last20YearsData.map(d => d.release_year))).sort((a, b) => b - a);
+
+    // Group data by "listed_in" and count titles for each year
+    let listedInCounts = {};
+
+    last20YearsData.forEach(d => {
+        let listedInValues = d.listed_in.split(/\s*,\s*/);
+
+        listedInValues.forEach(listedIn => {
+            if (!listedInCounts[listedIn]) {
+                listedInCounts[listedIn] = {
+                    years: {}
+                };
+            }
+
+            if (!listedInCounts[listedIn].years[d.release_year]) {
+                listedInCounts[listedIn].years[d.release_year] = 1;
+            } else {
+                listedInCounts[listedIn].years[d.release_year]++;
+            }
+        });
+    });
+
+    // Sort listedIn categories by total count
+    let sortedListedIn = Object.keys(listedInCounts)
+        .sort((a, b) => d3.sum(Object.values(listedInCounts[a].years)) - d3.sum(Object.values(listedInCounts[b].years)))
+        .reverse();
+
+    // Select the top 5 listedIn categories
+    let top5ListedIn = sortedListedIn.slice(0, 5);
+
+    let xScale = d3.scaleBand()
+        .domain(years.map(String)) // Convert back to string for the x-axis
+        .range([0, width])
+        .padding(0.1);
+
+    let maxTitleCount = d3.max(top5ListedIn.map(d => d3.max(Object.values(listedInCounts[d].years))));
+    let yAxisPadding = 30;
+
+    let yScale = d3.scaleLinear()
+        .domain([0, maxTitleCount + yAxisPadding])
+        .range([height, 0]);
+
+    let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+    let line = d3.line()
+        .x(d => xScale(String(d.year)) + xScale.bandwidth() / 2)
+        .y(d => yScale(d.value));
+
+    // Draw lines
+    svg.selectAll(".line")
+        .data(top5ListedIn)
+        .enter()
+        .append("path")
+        .attr("class", "line")
+        .attr("fill", "none")
+        .attr("stroke", d => colorScale(d))
+        .attr("stroke-width", 2)
+        .attr("d", d => line(Object.entries(listedInCounts[d].years).map(([year, count]) => ({ year: +year, value: count }))));
+
+    // Draw dots and labels
+    svg.selectAll(".dot")
+        .data(top5ListedIn)
+        .enter()
+        .append("g")
+        .selectAll(".dot")
+        .data(d => years.map(year => ({ year, value: listedInCounts[d].years[year] || 0 })))
+        .enter().append("circle")
+        .attr("class", "dot")
+        .attr("cx", d => xScale(String(d.year)) + xScale.bandwidth() / 2)
+        .attr("cy", d => yScale(d.value))
+        .attr("r", 5)
+        .on("mouseover", (event, d) => {
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            tooltip.html(`<strong>${d.value} titles</strong> in ${d.year} - ${d3.select(event.target.parentNode).datum()}`)
+                .style("left", (event.pageX) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", d => {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        });
+
+    svg.selectAll(".dot-label")
+        .data(top5ListedIn)
+        .enter()
+        .append("g")
+        .selectAll(".dot-label")
+        .data(d => years.map(year => ({ year, value: listedInCounts[d].years[year] || 0 })))
+        .enter().append("text")
+        .attr("class", "dot-label")
+        .attr("x", d => xScale(String(d.year)) + xScale.bandwidth() / 2)
+        .attr("y", d => yScale(d.value) - 10)
+        .text(d => d.value)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .style("font-size", "14px")
+        .style("font-weight", "600");
+
+    // Draw x-axis and y-axis
+    svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(xScale))
+        .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end")
+        .style("font-size", "14px")
+        .attr("font-weight", 700);
+
+    svg.append("g")
+        .call(d3.axisLeft(yScale))
+        .selectAll("text")
+        .style("font-size", "14px")
+        .attr("font-weight", 700);
+
+    // Draw chart title
+    svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .style("font-size", "16px")
+        .style("font-weight", "700")
+        .text("Number of Titles by Listed In Over the Last 20 Years");
+
+    // Add tooltip
+    let tooltip = d3.select("body")
+        .append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0)
+        .style("position", "absolute")
+        .style("background", "#f4f4f4")
+        .style("padding", "10px")
+        .style("border", "1px solid #ccc")
+        .style("border-radius", "5px")
+        .style("pointer-events", "none");
+}
+
 
 NetflixData((data) => {
     // console.log(data)
@@ -1048,8 +1209,9 @@ NetflixData((data) => {
     visualizeTypePieChart(data);
     visualizeDurationPieChart(data);
     visualizeListedInPieChart(data);
-    visualizeLineChart(data);
-    
+    visualizeReleaseYearCountsLineChart(data);
+    visualizeReleaseYearCountsListedInLineChart(data);
+
 });
 
     </script>
