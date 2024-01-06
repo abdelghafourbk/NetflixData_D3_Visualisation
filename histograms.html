@@ -909,10 +909,134 @@ svg.append("text")
     .text("Top 5 Listed In Categories Distribution");
 }
 
+function visualizeLineChart(data) {
+    let margin = { top: 20, right: 30, bottom: 80, left: 60 },
+        width = 800 - margin.left - margin.right,
+        height = 400 ;
+
+    let svg = d3.select("body")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // Filter data for the last 20 years
+    let last20YearsData = data.filter(d => d.release_year >= 2005);
+
+    last20YearsData.forEach(d => {
+        d.release_year = +d.release_year; // Convert to number
+    });
+
+    // Years from newest to oldest
+    let years = Array.from(new Set(last20YearsData.map(d => d.release_year))).sort((a, b) => b - a);
+
+    let yearCounts = years.map(year => {
+        return {
+            year: year,
+            title_count: last20YearsData.filter(d => d.release_year === year).length
+        };
+    });
+
+    let xScale = d3.scaleBand()
+        .domain(years.map(String)) // Convert back to string for the x-axis
+        .range([0, width])
+        .padding(0.1);
+
+    let maxTitleCount = d3.max(yearCounts, d => d.title_count);
+    let yAxisPadding = 30; 
+
+    let yScale = d3.scaleLinear()
+        .domain([0, maxTitleCount + yAxisPadding])
+        .range([height, 0]);
+
+    let line = d3.line()
+        .x(d => xScale(String(d.year)) + xScale.bandwidth() / 2) 
+        .y(d => yScale(d.title_count));
+
+
+    svg.append("path")
+        .datum(yearCounts)
+        .attr("fill", "none")
+        .attr("stroke", "steelblue")
+        .attr("stroke-linejoin", "round")
+        .attr("stroke-linecap", "round")
+        .attr("stroke-width", 2)
+        .attr("d", line);
+
+        svg.selectAll(".dot")
+            .data(yearCounts)
+            .enter().append("circle")
+            .attr("class", "dot")
+            .attr("cx", d => xScale(String(d.year)) + xScale.bandwidth() / 2) 
+            .attr("cy", d => yScale(d.title_count))
+            .attr("r", 5)
+            .on("mouseover", (event, d) => {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`<strong>${d.title_count} titles</strong> in ${d.year}`)
+                    .style("left", (event.pageX) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", d => {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+
+    svg.selectAll(".dot-label")
+        .data(yearCounts)
+        .enter().append("text")
+        .attr("class", "dot-label")
+        .attr("x", d => xScale(String(d.year)) + xScale.bandwidth() / 2) 
+        .attr("y", d => yScale(d.title_count) - 10)
+        .text(d => d.title_count)
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .style("font-size", "14px")
+        .style("font-weight", "600");
+
+    svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(xScale))
+        .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end")
+        .style("font-size", "14px")
+        .attr("font-weight", 700);
+
+    svg.append("g")
+        .call(d3.axisLeft(yScale))
+        .selectAll("text")
+        .style("font-size", "14px")
+        .attr("font-weight", 700);
+
+    svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom )
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .style("font-size", "16px")
+        .style("font-weight", "700")
+        .text("Number of Titles Over the Last 20 Years");
+
+    let tooltip = d3.select("body")
+        .append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0)
+        .style("position", "absolute")
+        .style("background", "#f4f4f4")
+        .style("padding", "10px")
+        .style("border", "1px solid #ccc")
+        .style("border-radius", "5px")
+        .style("pointer-events", "none");
+}
+
 
 
 NetflixData((data) => {
-    console.log(data)
+    // console.log(data)
 
     //Calling the visualizations here
     visualizeDurationCountsHistogram(data);
@@ -924,6 +1048,7 @@ NetflixData((data) => {
     visualizeTypePieChart(data);
     visualizeDurationPieChart(data);
     visualizeListedInPieChart(data);
+    visualizeLineChart(data);
     
 });
 
