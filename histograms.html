@@ -1046,14 +1046,12 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    // Filter data for the last 20 years
     let last20YearsData = data.filter(d => d.release_year >= 2005);
 
     last20YearsData.forEach(d => {
-        d.release_year = +d.release_year; // Convert to number
+        d.release_year = +d.release_year;
     });
 
-    // Years from newest to oldest
     let years = Array.from(new Set(last20YearsData.map(d => d.release_year))).sort((a, b) => b - a);
 
     // Group data by "listed_in" and count titles for each year
@@ -1077,16 +1075,14 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         });
     });
 
-    // Sort listedIn categories by total count
     let sortedListedIn = Object.keys(listedInCounts)
         .sort((a, b) => d3.sum(Object.values(listedInCounts[a].years)) - d3.sum(Object.values(listedInCounts[b].years)))
         .reverse();
 
-    // Select the top 5 listedIn categories
     let top5ListedIn = sortedListedIn.slice(0, 5);
 
     let xScale = d3.scaleBand()
-        .domain(years.map(String)) // Convert back to string for the x-axis
+        .domain(years.map(String)) 
         .range([0, width])
         .padding(0.1);
 
@@ -1103,7 +1099,6 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         .x(d => xScale(String(d.year)) + xScale.bandwidth() / 2)
         .y(d => yScale(d.value));
 
-    // Draw lines
     svg.selectAll(".line")
         .data(top5ListedIn)
         .enter()
@@ -1114,7 +1109,6 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         .attr("stroke-width", 2)
         .attr("d", d => line(Object.entries(listedInCounts[d].years).map(([year, count]) => ({ year: +year, value: count }))));
 
-    // Draw dots and labels
     svg.selectAll(".dot")
         .data(top5ListedIn)
         .enter()
@@ -1156,7 +1150,6 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         .style("font-size", "14px")
         .style("font-weight", "600");
 
-    // Draw x-axis and y-axis
     svg.append("g")
         .attr("transform", "translate(0," + height + ")")
         .call(d3.axisBottom(xScale))
@@ -1172,7 +1165,31 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         .style("font-size", "14px")
         .attr("font-weight", 700);
 
-    // Draw chart title
+    let legend = svg.append("g")
+        .attr("class", "legend")
+        .attr("transform", "translate(" + (width - 200) + ",0)");
+
+    legend.selectAll("rect")
+        .data(top5ListedIn)
+        .enter()
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", (d, i) => i * 20)
+        .attr("width", 18)
+        .attr("height", 18)
+        .attr("fill", d => colorScale(d));
+
+    legend.selectAll("text")
+        .data(top5ListedIn)
+        .enter()
+        .append("text")
+        .attr("x", 25)
+        .attr("y", (d, i) => i * 20 + 12)
+        .text(d => d)
+        .attr("font-family", "sans-serif")
+        .style("font-size", "14px")
+        .style("font-weight", "600");
+
     svg.append("text")
         .attr("x", width / 2)
         .attr("y", height + margin.bottom)
@@ -1182,7 +1199,6 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
         .style("font-weight", "700")
         .text("Number of Titles by Listed In Over the Last 20 Years");
 
-    // Add tooltip
     let tooltip = d3.select("body")
         .append("div")
         .attr("class", "tooltip")
