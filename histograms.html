@@ -13,8 +13,28 @@
         .axis text {
             font-family: sans-serif;
             font-size: 12px;
-
         }
+        .node {
+            stroke: #fff;
+        }
+        .label {
+          font: 16px sans-serif;
+          pointer-events: none;
+        }
+        .tooltip {
+        text-align: center;
+        color: white;
+        font-weight: bold;
+         }
+
+      .rect {
+       
+        transition: fill 0.2s; 
+        }
+      .rect:hover {
+            fill: #C8A2C8;
+        }
+
     </style>
 </head>
 <body>
@@ -46,6 +66,7 @@
         callback(dataset);
     });      
 };
+
 
 function visualizeDurationCountsHistogram(data) {
     
@@ -1033,7 +1054,6 @@ function visualizeReleaseYearCountsLineChart(data) {
         .style("pointer-events", "none");
 }
 
-
 function visualizeReleaseYearCountsListedInLineChart(data) {
     let margin = { top: 20, right: 30, bottom: 80, left: 60 },
         width = 800 - margin.left - margin.right,
@@ -1212,6 +1232,188 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
 }
 
 
+        const width = 1200;
+        const height = 700;
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const svg = d3.select("body")
+                        .append("svg")
+                        .attr("width", width)
+                        .attr("height", height);
+            
+const createTreemap = (data, category, genre, rating)=>{ 
+
+
+
+        const tooltip = d3.select("body").append("div")
+                                .attr("class", "tooltip")
+                                .style("opacity", 0)
+                                .style("position", "absolute")
+                                .style("padding", "4px")
+                                .style("background", "lightsteelblue")
+                                .style("border", "solid")
+                                .style("border-width", "1px")
+                                .style("border-radius", "5px")
+                                .style("pointer-events", "none");
+
+        tooltip.style("opacity", 0);
+
+        svg.selectAll("*").remove();
+
+        let processedData;
+
+        if (category && genre && rating) {
+
+            let filteredData = data.filter(d => d.type === category && d.listed_in.includes(genre) && d.rating === rating);
+            console.log("Filtered Data for rating:", filteredData); 
+
+            if (filteredData.length > 0) {
+            let randomTitles = d3.shuffle(filteredData).slice(0, 10);
+            console.log("Random Titles:", randomTitles); 
+            processedData = randomTitles.map(d => ({ name: d.title, value: 1 }));
+            } else {
+            console.error("No data found for this rating:", rating);
+            return; 
+            }
+        } else if (category && genre) {
+            let filteredData = data.filter(d => d.type === category && d.listed_in.includes(genre));
+            processedData = Array.from(d3.rollup(filteredData, v => v.length, d => d.rating), ([name, value]) => ({ name, value }));
+        } else if (category) {
+            let filteredData = data.filter(d => d.type === category).map(d => ({
+                ...d,
+                genres: d.listed_in.split(', ')
+            })).flatMap(d => d.genres.map(genre => ({
+                type: d.type,
+                genre: genre
+            })));
+            processedData = Array.from(d3.rollup(filteredData, v => v.length, d => d.genre), ([name, value]) => ({ name, value }));
+            } else {
+            processedData = Array.from(d3.rollup(data, v => v.length, d => d.type), ([name, value]) => ({ name, value }));
+        }
+
+        const root = d3.hierarchy({children: processedData})
+            .sum(d => d.value);
+
+        d3.treemap()
+            .size([width, height])
+            .padding(2)(root);
+
+        
+
+            svg.on("click", () => console.log("SVG clicked"));
+
+            function mouseover(event, d) {
+                let content;
+
+                if (category && genre && rating && d.data.name) {
+                
+                    let titleData = data.find(item => item.title === d.data.name && item.type === category && item.listed_in.includes(genre) && item.rating === rating);
+                    if (titleData) {
+                        content = `Title: ${titleData.title}<br>Director: ${titleData.director}<br>Description: ${titleData.description}`;
+                    } else {
+                        content = "No additional information available";
+                    }
+                } else {
+                    
+                    content = "Category: " + d.data.name + "<br>Count: " + d.value;
+                }
+
+                tooltip.html(content)
+                        .style("left", (event.pageX) + "px")
+                        .style("top", (event.pageY) + "px")
+                        .transition()
+                        .duration(200)
+                        .style("opacity", 0.9);
+            }
+
+            function mouseout(event, d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            }
+
+        const leaf = svg.selectAll("g")
+            .data(root.leaves())
+            .enter().append("g")
+            .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+        leaf.append("rect")
+            .attr("class", "rect-border")
+            .attr("width", d => d.x1 - d.x0)
+            .attr("height", d => d.y1 - d.y0)
+            .attr("fill", d => colorScale(d.data.name))
+            .style("fill-opacity", 0.7) 
+            .attr("stroke", "none");
+
+        leaf.append("rect")
+            .attr("class", "rect")
+            .attr("width", d => d.x1 - d.x0 - 4) 
+            .attr("height", d => d.y1 - d.y0 - 4) 
+            .attr("fill", d => colorScale(d.data.name))
+            .style("fill-opacity", 0.5) 
+            .attr("x", 2) 
+            .attr("y", 2) 
+            .attr("stroke", d => colorScale(d.data.name)) 
+            .attr("stroke-width", "15") 
+            .on("mouseover", mouseover)
+            .on("mouseout", mouseout)
+            .on("click", (event, d) => {
+                tooltip.transition().duration(0).style("opacity", 0);
+
+                        if (category && genre && !rating) {
+                        
+                            createTreemap(data, category, genre, d.data.name);
+                        } else if (category && !genre) {
+                            
+                            createTreemap(data, category, d.data.name);
+                        } else if (!category) {
+                            
+                            createTreemap(data, d.data.name);
+                        }
+                    });
+
+        leaf.append("text")
+                .attr("class", "label")
+                .attr("x", d => (d.x1 - d.x0) / 2)
+                .attr("y", d => (d.y1 - d.y0) / 2)
+                .attr("text-anchor", "middle") 
+                .attr("alignment-baseline", "middle")
+                .style("fill", "white") 
+                .text(d => d.data.name);
+
+
+        d3.select(".back-button").remove();
+
+        if (category) {
+            let backButton = svg.append("g")
+                .attr("class", "back-button")
+                .style("cursor", "pointer") 
+                .on("click", () => {
+                    tooltip.style("opacity", 0);
+                    createTreemap(data);
+                });
+
+            backButton.append("rect")
+                .attr("x", width - 40) 
+                .attr("y", 10)
+                .attr("width", 30)
+                .attr("height", 30)
+                .attr("fill", "#C8A2C8") 
+                .attr("rx", 15) 
+                .attr("ry", 15); 
+
+            backButton.append("text")
+                .attr("x", width - 25) 
+                .attr("y", 30) 
+                .text("↑") 
+                .attr("fill", "white") 
+                .attr("text-anchor", "middle")
+                .attr("alignment-baseline", "middle")
+                .attr("font-size", "20px"); 
+        }
+ };
+
+
 NetflixData((data) => {
     // console.log(data)
 
@@ -1227,6 +1429,7 @@ NetflixData((data) => {
     visualizeListedInPieChart(data);
     visualizeReleaseYearCountsLineChart(data);
     visualizeReleaseYearCountsListedInLineChart(data);
+    createTreemap(data);
 
 });
 
