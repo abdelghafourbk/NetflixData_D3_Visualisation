@@ -21,19 +21,20 @@
           font: 16px sans-serif;
           pointer-events: none;
         }
-        .tooltip {
+        .tooltipMap {
         text-align: center;
         color: white;
         font-weight: bold;
          }
 
-      .rect {
-       
-        transition: fill 0.2s; 
-        }
-      .rect:hover {
-            fill: #C8A2C8;
-        }
+        .rect {
+        
+            transition: fill 0.2s; 
+            }
+        .rect:hover {
+                fill: #C8A2C8;
+            }
+            
 
     </style>
 </head>
@@ -46,22 +47,21 @@
         let dataset = data
             .filter(d => d.director && d.director.trim() !== "")  // Filter out entries with empty or undefined director    
             .filter(d => d.rating && d.rating.trim() !== "")            
-            .map((d) => {
-                                return {
-                                    // show_id,type,title,director,cast,country,date_added,release_year,rating,duration,listed_in,description
-                                    type: d.type,           //string
-                                    title: d.title,         //string
-                                    director: d.director,   //string or Array of strings
-                                    cast: d.cast,           //Array Of strings
-                                    country: d.country,     //string or array of strings
-                                    date_added: d.date_added, //string
-                                    release_year: d.release_year, //number
-                                    rating: d.rating,               //string
-                                    duration: d.duration,       //string
-                                    listed_in: d.listed_in,     //string or array of strings
-                                    description: d.description, //list of strings
-                                    
-                                };
+            .flatMap((d) => {
+                const countries = d.country.split(',').map(country => country.trim());
+                return countries.map(country => ({
+                    type: d.type,
+                    title: d.title,
+                    director: d.director,
+                    cast: d.cast,
+                    country: country, // Separate entry for each country
+                    date_added: d.date_added,
+                    release_year: d.release_year,
+                    rating: d.rating,
+                    duration: d.duration,
+                    listed_in: d.listed_in,
+                    description: d.description,
+                }));
                         }); 
         callback(dataset);
     });      
@@ -902,17 +902,18 @@ let legend = svg.selectAll(".legend")
     .enter()
     .append("g")
     .attr("class", "legend")
-    .attr("transform", (d, i) => "translate(0," + (i * 20 + height / 2 - 30) + ")");
+    .attr("transform", (d, i) => "translate(0," + (i * 25 + height / 2 - 40) + ")");
 
 legend.append("rect")
-    .attr("x", width / 2 - 18)
+    .attr("x", width / 2 +80)
+    .attr("y", -48)
     .attr("width", 18)
     .attr("height", 18)
     .style("fill", d => color(d));
 
 legend.append("text")
-    .attr("x", width / 2 - 24)
-    .attr("y", 9)
+    .attr("x", width / 2 + 70)
+    .attr("y", -40)
     .attr("dy", ".35em")
     .attr("font-family", "sans-serif")
     .style("font-size", "16px")
@@ -931,14 +932,14 @@ svg.append("text")
 }
 
 function visualizeReleaseYearCountsLineChart(data) {
-    let margin = { top: 20, right: 30, bottom: 80, left: 60 },
+    let margin = { top: 20, right: 30, bottom: 100, left: 60 },
         width = 800 - margin.left - margin.right,
         height = 400 ;
 
     let svg = d3.select("body")
         .append("svg")
         .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
+        .attr("height", height + margin.top + 80)
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
@@ -1035,7 +1036,7 @@ function visualizeReleaseYearCountsLineChart(data) {
 
     svg.append("text")
         .attr("x", width / 2)
-        .attr("y", height + margin.bottom )
+        .attr("y", height + 70 )
         .attr("text-anchor", "middle")
         .attr("font-family", "sans-serif")
         .style("font-size", "16px")
@@ -1232,7 +1233,7 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
 }
 
 
-        const width = 1200;
+        const width = 1300;
         const height = 700;
         const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -1242,8 +1243,6 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
                         .attr("height", height);
             
 const createTreemap = (data, category, genre, rating)=>{ 
-
-
 
         const tooltip = d3.select("body").append("div")
                                 .attr("class", "tooltip")
@@ -1413,11 +1412,135 @@ const createTreemap = (data, category, genre, rating)=>{
         }
  };
 
+    const fetchGeoJSON = async () => {
+        try {
+            const response = await fetch("countries.geo.json"); 
+            const data = await response.json();
+            console.log("Loaded GeoJSON data:", data);
+            return data;
+        } catch (error) {
+            console.error("Error loading GeoJSON:", error);
+            throw error; 
+        }
+    };
+
+    const mergeData = (geoData, netflixData) => {
+
+        const netflixDataByCountry = d3.rollup(netflixData, v => ({
+            titleCount: v.length,
+            topListedIn: getTopListedIn(v),
+            categories: [...new Set(v.flatMap(d => d.listed_in.split(', ')))]
+        }), d => d.country);
+
+        geoData.features.forEach(feature => {
+            const countryName = feature.properties.name;
+            const countryData = netflixDataByCountry.get(countryName);
+            feature.properties.netflixData = countryData || { titleCount: 0, topListedIn: '', categories: [] };
+        });
+
+        return geoData;
+    };
+
+    function getTopListedIn(data) {
+        const listedInCounts = d3.rollup(data.flatMap(d => d.listed_in.split(', ')), v => v.length, d => d);
+        const sortedListedIn = Array.from(listedInCounts.entries())
+            .sort((a, b) => b[1] - a[1]);
+
+    return sortedListedIn.length > 0 ? sortedListedIn[0][0] : '';
+}
+
+function visualizeChoroplethMap(mergedData) {
+    const width = 800;
+    const height = 700;
+    const margin = { top: 20, right: 20, bottom: 30, left: 20 };
+
+
+    const svgMap = d3.select("body")
+        .append("svg")
+        .attr("class", "map")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom);
+
+        d3.select("body")
+        .append("div")
+        .attr("class", "chart-title")
+        .style("text-align", "center")
+        .style("font-size", "18px")
+        .style("font-family", "sans-serif")
+        .style("font-weight", "bold")
+        .text("Netflix Titles Choropleth Map");
+
+    const projection = d3.geoMercator()
+                            .scale(150) 
+                            .translate([width / 2, height / 2]);
+
+    const path = d3.geoPath().projection(projection);
+
+    const uniqueCategories = Array.from(new Set(mergedData.features.map(d => d.properties.netflixData.topListedIn)));
+    const categoryColorScale = d3.scaleOrdinal()
+        .domain(uniqueCategories)
+        .range(['#1f78b4', '#33a02c', '#e31a1c', '#ff7f00', '#6a3d9a', '#b15928', '#a6cee3', '#b2df8a', '#fb9a99', '#fdbf6f']);
+
+    const maxTitleCount = d3.max(mergedData.features, d => d.properties.netflixData.titleCount);
+    const opacityScale = d3.scaleLinear()
+        .domain([0, maxTitleCount])
+        .range([0.5, 1]);
+
+        
+    svgMap.selectAll("path")
+        .data(mergedData.features)
+        .enter()
+        .append("path")
+        .attr("d", path)
+        .attr("fill", d => {
+            const topListedIn = d.properties.netflixData.topListedIn;
+            const titleCount = d.properties.netflixData.titleCount;
+            const categoryColor = topListedIn ? categoryColorScale(topListedIn) : "gray";
+            const opacity = titleCount ? opacityScale(titleCount) : 0.5; 
+
+            return `rgba(${d3.color(categoryColor).r}, ${d3.color(categoryColor).g}, ${d3.color(categoryColor).b}, ${opacity})`;
+        })
+        .attr("stroke", "white")
+        .attr("stroke-width", 0.5) 
+        .on("mouseover", (event, d) => {
+            const titleCount = d.properties.netflixData.titleCount;
+            const topListedIn = d.properties.netflixData.topListedIn;
+            const tooltipContent = titleCount ?
+                `Country: ${d.properties.name}<br>Title Count: ${titleCount}<br>Top Listed In: ${topListedIn || 'N/A'}` :
+                `Country: ${d.properties.name}<br>No data available`;
+
+            tooltip.html(tooltipContent)
+                .style("left", (event.pageX) + 'px')
+                .style("top", (event.pageY - 28) + 'px')
+                .transition()
+                .duration(200)
+                .style("opacity", 0.9);
+        })
+        .on("mouseout", () => {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        })
+        .on("error", (event, d) => {
+            console.error("Error in drawing path:", event);
+        });
+    }
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltipMap")
+            .style("opacity", 0)
+            .style("position", "absolute")
+            .style("padding", "4px")
+            .style("background", "lightsteelblue")
+            .style("border", "solid")
+            .style("border-width", "1px")
+            .style("border-radius", "5px")
+            .style("z-index", 9999)
+            .style("pointer-events", "none");
+
 
 NetflixData((data) => {
     // console.log(data)
 
-    //Calling the visualizations here
     visualizeDurationCountsHistogram(data);
     visualizeReleaseYearCountsHistogram(data);
     visualizeDateAddedCountsHistogram(data);
@@ -1430,6 +1553,17 @@ NetflixData((data) => {
     visualizeReleaseYearCountsLineChart(data);
     visualizeReleaseYearCountsListedInLineChart(data);
     createTreemap(data);
+
+    Promise.all([fetchGeoJSON(), new Promise(resolve => NetflixData(resolve))])
+        .then(([geoData, netflixData]) => {
+            const mergedData = mergeData(geoData, netflixData);
+            console.log(mergedData);
+            visualizeChoroplethMap(mergedData);
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+
 
 });
 
