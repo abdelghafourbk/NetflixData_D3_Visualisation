@@ -45,7 +45,7 @@
         const NetflixData = (callback) => {
         d3.csv("netflix_titles.csv").then((data) => {
         let dataset = data
-            .filter(d => d.director && d.director.trim() !== "")  // Filter out entries with empty or undefined director    
+            .filter(d => d.director && d.director.trim() !== "")    
             .filter(d => d.rating && d.rating.trim() !== "")            
             .flatMap((d) => {
                 const countries = d.country.split(',').map(country => country.trim());
@@ -54,7 +54,7 @@
                     title: d.title,
                     director: d.director,
                     cast: d.cast,
-                    country: country, // Separate entry for each country
+                    country: country, 
                     date_added: d.date_added,
                     release_year: d.release_year,
                     rating: d.rating,
@@ -83,7 +83,6 @@ function visualizeDurationCountsHistogram(data) {
     //***Duration/Counts Histogram***//
     let durationCounts = d3.rollup(data, v => v.length, d => d.duration);
 
-     // Sorting the durations cuz we cant display all the durations (Too much)
      let sortedDurations = Array.from(durationCounts.entries())
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 15); // Top15
@@ -102,7 +101,6 @@ function visualizeDurationCountsHistogram(data) {
         .range([h - padding, padding]);
 
     let bars = svg.selectAll("rect")   
-                // .data(durationCounts.entries())
                 .data(sortedDurations)
                 .enter()
                 .append("rect")
@@ -113,7 +111,6 @@ function visualizeDurationCountsHistogram(data) {
                 .attr("fill", "purple");
 
 
-    // Add labels on top of each rectangle
     let labels = svg.selectAll("text")
                     .data(sortedDurations)
                     .enter()
@@ -129,7 +126,6 @@ function visualizeDurationCountsHistogram(data) {
                     .style("opacity", 0);
                     
 
-    // Show labels on hover
     bars.on("mouseover", function (event, d) {
         d3.select(this).attr("fill", "orange"); 
         labels.filter(label => label === d)
@@ -141,7 +137,6 @@ function visualizeDurationCountsHistogram(data) {
                 .style("opacity", 0); 
         });
 
-    // x-axis
     svg.append("g")
         .attr("transform", "translate(0," + (h - padding) + ")")
         .call(d3.axisBottom(xScale))
@@ -152,7 +147,6 @@ function visualizeDurationCountsHistogram(data) {
         .attr("dy", ".15em")
         .attr("transform", "rotate(-45)");
 
-    // y-axis
     svg.append("g")
         .attr("transform", "translate(" + padding + ",0)")
         .call(d3.axisLeft(yScale))
@@ -161,7 +155,7 @@ function visualizeDurationCountsHistogram(data) {
 
     svg.append("text")
         .attr("x", w / 2)
-        .attr("y", h + 60 ) // Adjust the position based on your preference
+        .attr("y", h + 60 )
         .attr("text-anchor", "middle")
         .attr("font-family", "sans-serif")
         .attr("font-size", "16px")
@@ -186,10 +180,8 @@ function visualizeDateAddedCountsHistogram(data) {
 
     let dateAddedCounts = d3.rollup(data, v => v.length, d => d.date_added);
 
-    // Sorting release years in descending order
     let sortedDateAdded = Array.from(dateAddedCounts.keys()).sort((a, b) => b - a);
 
-    // Select the last 15 release years
     let last15DateAdded = sortedDateAdded.slice(0, 15);
 
     let xScaleDateAdded = d3.scaleBand()
@@ -247,7 +239,6 @@ function visualizeDateAddedCountsHistogram(data) {
                 .style("opacity", 0);
         });
 
-    // x-axis
     svg.append("g")
         .attr("transform", "translate(0," + (h - padding) + ")")
         .call(d3.axisBottom(xScaleDateAdded))
@@ -258,7 +249,6 @@ function visualizeDateAddedCountsHistogram(data) {
         .attr("dy", ".15em")
         .attr("transform", "rotate(-45)");
 
-    // y-axis
     svg.append("g")
         .attr("transform", "translate(" + padding + ",0)")
         .call(d3.axisLeft(yScaleDateAdded))
@@ -292,10 +282,8 @@ function visualizeReleaseYearCountsHistogram(data) {
 
     let releaseYearCounts = d3.rollup(data, v => v.length, d => d.release_year);
 
-    // Sorting release years in descending order
     let sortedReleaseYears = Array.from(releaseYearCounts.keys()).sort((a, b) => b - a);
 
-    // Select the last 15 release years
     let last15ReleaseYears = sortedReleaseYears.slice(0, 15);
 
     let xScaleReleaseYear = d3.scaleBand()
@@ -353,7 +341,6 @@ function visualizeReleaseYearCountsHistogram(data) {
                 .style("opacity", 0);
         });
 
-    // x-axis
     svg.append("g")
         .attr("transform", "translate(0," + (h - padding) + ")")
         .call(d3.axisBottom(xScaleReleaseYear))
@@ -364,7 +351,6 @@ function visualizeReleaseYearCountsHistogram(data) {
         .attr("dy", ".15em")
         .attr("transform", "rotate(-45)");
 
-    // y-axis
     svg.append("g")
         .attr("transform", "translate(" + padding + ",0)")
         .call(d3.axisLeft(yScaleReleaseYear))
@@ -388,7 +374,7 @@ function visualizeRatingCountsHistogram(data){
 
     let svg = d3.select("body")
         .append("svg")
-        .attr("height", h + 70) // Increased height to accommodate the title
+        .attr("height", h + 70)
         .attr("width", w);
 
     let padding = 50;
@@ -488,17 +474,15 @@ function visualizeTopDirectorsHistogram(data) {
 
     let svg = d3.select("body")
         .append("svg")
-        .attr("height", h + 70) // Increased height to accommodate the title
+        .attr("height", h + 70) 
         .attr("width", w);
 
     let padding = 50;
 
     //***Top Directors/Title Counts Histogram***//
-    // dont forget when fetching the director data that there are some title shaving multiple directors
-    // Create an object to store counts for each director
+ 
     let directorCounts = {};
 
-    // Count titles for each director
     data.forEach(d => {
         let directors = d.director.split(/\s*,\s*/);
         directors.forEach(dir => {
@@ -510,7 +494,6 @@ function visualizeTopDirectorsHistogram(data) {
         });
     });
 
-    // Convert the object into an array of [director, count]
     let sortedDirectors = Object.entries(directorCounts)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 15);
@@ -943,14 +926,12 @@ function visualizeReleaseYearCountsLineChart(data) {
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    // Filter data for the last 20 years
     let last20YearsData = data.filter(d => d.release_year >= 2005);
 
     last20YearsData.forEach(d => {
         d.release_year = +d.release_year; // Convert to number
     });
 
-    // Years from newest to oldest
     let years = Array.from(new Set(last20YearsData.map(d => d.release_year))).sort((a, b) => b - a);
 
     let yearCounts = years.map(year => {
@@ -961,7 +942,7 @@ function visualizeReleaseYearCountsLineChart(data) {
     });
 
     let xScale = d3.scaleBand()
-        .domain(years.map(String)) // Convert back to string for the x-axis
+        .domain(years.map(String)) 
         .range([0, width])
         .padding(0.1);
 
@@ -1075,7 +1056,6 @@ function visualizeReleaseYearCountsListedInLineChart(data) {
 
     let years = Array.from(new Set(last20YearsData.map(d => d.release_year))).sort((a, b) => b - a);
 
-    // Group data by "listed_in" and count titles for each year
     let listedInCounts = {};
 
     last20YearsData.forEach(d => {
@@ -1563,7 +1543,6 @@ NetflixData((data) => {
         .catch(error => {
             console.error('Error fetching data:', error);
         });
-
 
 });
 
